@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>돈모아 국가별 검색기</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { 
+            font-family: 'Noto Sans KR', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
+            margin: 0;
+            overflow: hidden;
+            background-color: #f3f4f6;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .loading-fallback { display: flex; height: 100vh; justify-content: center; align-items: center; font-size: 1.2rem; color: #666; }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading-fallback">로딩 중입니다...</div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect, useRef } = React;
+
+        // --- Icons ---
+        const Icon = ({ children, size = 20, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+        const SearchIcon = (props) => <Icon {...props}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></Icon>;
+        const ExternalLinkIcon = (props) => <Icon {...props}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></Icon>;
+        const GlobeIcon = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></Icon>;
+        const ChevronRightIcon = (props) => <Icon {...props}><polyline points="9 18 15 12 9 6"></polyline></Icon>;
+        const MenuIcon = (props) => <Icon {...props}><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></Icon>;
+        const LinkIcon = (props) => <Icon {...props}><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></Icon>;
+        const KeyboardIcon = (props) => <Icon {...props}><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="6" y1="8" x2="6" y2="8"></line><line x1="10" y1="8" x2="10" y2="8"></line><line x1="14" y1="8" x2="14" y2="8"></line><line x1="18" y1="8" x2="18" y2="8"></line><line x1="6" y1="12" x2="6" y2="12"></line><line x1="10" y1="12" x2="10" y2="12"></line><line x1="14" y1="12" x2="14" y2="12"></line><line x1="18" y1="12" x2="18" y2="12"></line><line x1="6" y1="16" x2="6" y2="16"></line><line x1="10" y1="16" x2="15" y2="16"></line></Icon>;
+        const XIcon = (props) => <Icon {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></Icon>;
+        const RotateCcwIcon = (props) => <Icon {...props}><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></Icon>;
+
+        const App = () => {
+            const [selectedCountry, setSelectedCountry] = useState(null);
+            const [searchTerm, setSearchTerm] = useState('');
+            const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+            const [lang, setLang] = useState('ko'); // 'ko' or 'en'
+            const [searchCategory, setSearchCategory] = useState('all'); // 'all', 'notes', 'coins'
+            
+            // 사이드바 리스트 스크롤 제어를 위한 Ref
+            const listRef = useRef(null);
+
+            useEffect(() => {
+                const handleResize = () => {
+                    if (window.innerWidth < 768) setIsSidebarOpen(false);
+                    else setIsSidebarOpen(true);
+                };
+                window.addEventListener('resize', handleResize);
+                handleResize();
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            const countries = [
+                { ko: "가나", en: "Ghana" }, { ko: "가봉", en: "Gabon" }, { ko: "가이아나", en: "Guyana" }, { ko: "감비아", en: "Gambia" }, { ko: "과테말라", en: "Guatemala" }, { ko: "그레나다", en: "Grenada" }, { ko: "그리스", en: "Greece" }, { ko: "기니", en: "Guinea" }, { ko: "기니비사우", en: "Guinea-Bissau" },
+                { ko: "나미비아", en: "Namibia" }, { ko: "나우루", en: "Nauru" }, { ko: "나이지리아", en: "Nigeria" }, { ko: "남수단", en: "South Sudan" }, { ko: "남아프리카 공화국", en: "South Africa" }, { ko: "네덜란드", en: "Netherlands" }, { ko: "네팔", en: "Nepal" }, { ko: "노르웨이", en: "Norway" }, { ko: "뉴질랜드", en: "New Zealand" }, { ko: "니제르", en: "Niger" }, { ko: "니카라과", en: "Nicaragua" },
+                { ko: "대만", en: "Taiwan" }, { ko: "대한민국", en: "대한민국" }, { ko: "조선은행", en: "조선은행" }, { ko: "한국은행", en: "한국은행" }, { ko: "덴마크", en: "Denmark" }, { ko: "도미니카 공화국", en: "Dominican Republic" }, { ko: "독일", en: "Germany" }, { ko: "동티모르", en: "East Timor" },
+                { ko: "라오스", en: "Laos" }, { ko: "라이베리아", en: "Liberia" }, { ko: "라트비아", en: "Latvia" }, { ko: "러시아", en: "Russia" }, { ko: "레바논", en: "Lebanon" }, { ko: "레소토", en: "Lesotho" }, { ko: "루마니아", en: "Romania" }, { ko: "룩셈부르크", en: "Luxembourg" }, { ko: "르완다", en: "Rwanda" }, { ko: "리비아", en: "Libya" }, { ko: "리투아니아", en: "Lithuania" }, { ko: "리히텐슈타인", en: "Liechtenstein" },
+                { ko: "마다가스카르", en: "Madagascar" }, { ko: "말라위", en: "Malawi" }, { ko: "말레이시아", en: "Malaysia" }, { ko: "말리", en: "Mali" }, { ko: "멕시코", en: "Mexico" }, { ko: "모나코", en: "Monaco" }, { ko: "모로코", en: "Morocco" }, { ko: "모리셔스", en: "Mauritius" }, { ko: "모리타니", en: "Mauritania" }, { ko: "모잠비크", en: "Mozambique" }, { ko: "몬테네그로", en: "Montenegro" }, { ko: "몰도바", en: "Moldova" }, { ko: "몰디브", en: "Maldives" }, { ko: "몰타", en: "Malta" }, { ko: "몽골", en: "Mongolia" }, { ko: "미국", en: "United States" }, { ko: "미얀마", en: "Myanmar" },
+                { ko: "바누아투", en: "Vanuatu" }, { ko: "바레인", en: "Bahrain" }, { ko: "바베이도스", en: "Barbados" }, { ko: "바티칸 시국", en: "Vatican City" }, { ko: "방글라데시", en: "Bangladesh" }, { ko: "베네수엘라", en: "Venezuela" }, { ko: "베트남", en: "Vietnam" }, { ko: "벨기에", en: "Belgium" }, { ko: "벨라루스", en: "Belarus" }, { ko: "벨리즈", en: "Belize" }, { ko: "보스니아 헤르체고비나", en: "Bosnia and Herzegovina" }, { ko: "보츠와나", en: "Botswana" }, { ko: "볼리비아", en: "Bolivia" }, { ko: "부룬디", en: "Burundi" }, { ko: "부르키나파소", en: "Burkina Faso" }, { ko: "부탄", en: "Bhutan" }, { ko: "북마케도니아", en: "North Macedonia" }, { ko: "불가리아", en: "Bulgaria" }, { ko: "브라질", en: "Brazil" }, { ko: "브루나이", en: "Brunei" },
+                { ko: "사우디아라비아", en: "Saudi Arabia" }, { ko: "산마리노", en: "San Marino" }, { ko: "상투메 프린시페", en: "Sao Tome and Principe" }, { ko: "세네갈", en: "Senegal" }, { ko: "세르비아", en: "Serbia" }, { ko: "세이셸", en: "Seychelles" }, { ko: "세인트루시아", en: "Saint Lucia" }, { ko: "소말리아", en: "Somalia" }, { ko: "수단", en: "Sudan" }, { ko: "스리랑카", en: "Sri Lanka" }, { ko: "스웨덴", en: "Sweden" }, { ko: "스위스", en: "Switzerland" }, { ko: "스페인", en: "Spain" }, { ko: "슬로바키아", en: "Slovakia" }, { ko: "슬로베니아", en: "Slovenia" }, { ko: "시리아", en: "Syria" }, { ko: "시에라리온", en: "Sierra Leone" }, { ko: "싱가포르", en: "Singapore" },
+                { ko: "아랍에미리트", en: "United Arab Emirates" }, { ko: "아르헨티나", en: "Argentina" }, { ko: "아이슬란드", en: "Iceland" }, { ko: "아이티", en: "Haiti" }, { ko: "아일랜드", en: "Ireland" }, { ko: "아프가니스탄", en: "Afghanistan" }, { ko: "알바니아", en: "Albania" }, { ko: "알제리", en: "Algeria" }, { ko: "앙골라", en: "Angola" }, { ko: "에스토니아", en: "Estonia" }, { ko: "에스와티니", en: "Eswatini" }, { ko: "에콰도르", en: "Ecuador" }, { ko: "에티오피아", en: "Ethiopia" }, { ko: "엘살바도르", en: "El Salvador" }, { ko: "영국", en: "United Kingdom" }, { ko: "예멘", en: "Yemen" }, { ko: "오만", en: "Oman" }, { ko: "오스트리아", en: "Austria" }, { ko: "온두라스", en: "Honduras" }, { ko: "요르단", en: "Jordan" }, { ko: "우간다", en: "Uganda" }, { ko: "우루과이", en: "Uruguay" }, { ko: "우즈베키스탄", en: "Uzbekistan" }, { ko: "우크라이나", en: "Ukraine" }, { ko: "이라크", en: "Iraq" }, { ko: "이란", en: "Iran" }, { ko: "이스라엘", en: "Israel" }, { ko: "이집트", en: "Egypt" }, { ko: "이탈리아", en: "Italy" }, { ko: "인도", en: "India" }, { ko: "인도네시아", en: "Indonesia" }, { ko: "일본", en: "Japan" },
+                { ko: "자메이카", en: "Jamaica" }, { ko: "잠비아", en: "Zambia" }, { ko: "적도 기니", en: "Equatorial Guinea" }, { ko: "조지아", en: "Georgia" }, { ko: "중국", en: "China" }, { ko: "중앙아프리카 공화국", en: "Central African Republic" }, { ko: "지부티", en: "Djibouti" }, { ko: "짐바브웨", en: "Zimbabwe" },
+                { ko: "차드", en: "Chad" }, { ko: "체코", en: "Czech Republic" }, { ko: "칠레", en: "Chile" },
+                { ko: "카메룬", en: "Cameroon" }, { ko: "카보베르데", en: "Cape Verde" }, { ko: "카자흐스탄", en: "Kazakhstan" }, { ko: "카타르", en: "Qatar" }, { ko: "캄보디아", en: "Cambodia" }, { ko: "캐나다", en: "Canada" }, { ko: "케냐", en: "Kenya" }, { ko: "코모로", en: "Comoros" }, { ko: "코스타리카", en: "Costa Rica" }, { ko: "코트디부아르", en: "Cote d'Ivoire" }, { ko: "콜롬비아", en: "Colombia" }, { ko: "콩고 공화국", en: "Republic of the Congo" }, { ko: "쿠바", en: "Cuba" }, { ko: "쿠웨이트", en: "Kuwait" }, { ko: "크로아티아", en: "Croatia" }, { ko: "키르기스스탄", en: "Kyrgyzstan" }, { ko: "키리바시", en: "Kiribati" }, { ko: "키프로스", en: "Cyprus" },
+                { ko: "타지키스탄", en: "Tajikistan" }, { ko: "탄자니아", en: "Tanzania" }, { ko: "태국", en: "Thailand" }, { ko: "튀르키예", en: "Turkey" }, { ko: "토고", en: "Togo" }, { ko: "통가", en: "Tonga" }, { ko: "투르크메니스탄", en: "Turkmenistan" }, { ko: "튀니지", en: "Tunisia" }, { ko: "트리니다드 토바고", en: "Trinidad and Tobago" },
+                { ko: "파나마", en: "Panama" }, { ko: "파라과이", en: "Paraguay" }, { ko: "파키스탄", en: "Pakistan" }, { ko: "파푸아뉴기니", en: "Papua New Guinea" }, { ko: "팔라우", en: "Palau" }, { ko: "페루", en: "Peru" }, { ko: "포르투갈", en: "Portugal" }, { ko: "폴란드", en: "Poland" }, { ko: "프랑스", en: "France" }, { ko: "피지", en: "Fiji" }, { ko: "핀란드", en: "Finland" }, { ko: "필리핀", en: "Philippines" },
+                { ko: "헝가리", en: "Hungary" }, { ko: "호주", en: "Australia" }
+            ];
+
+            const filteredCountries = useMemo(() => {
+                const term = searchTerm.toLowerCase();
+                let result = [...countries]; 
+
+                if (term) {
+                    result = result.filter(c => c[lang].toLowerCase().includes(term));
+                }
+
+                if (lang === 'en') {
+                    result.sort((a, b) => a.en.localeCompare(b.en));
+                }
+
+                return result;
+            }, [countries, searchTerm, lang]);
+
+            // 검색 조건이 바뀔 때마다 스크롤을 맨 위로 초기화 (남아프리카 이후부터 보이는 버그 수정)
+            useEffect(() => {
+                if (listRef.current) {
+                    listRef.current.scrollTop = 0;
+                }
+            }, [searchTerm, lang]);
+
+            // URL 생성 함수
+            const getSearchUrl = (target) => {
+                let keyword = '';
+                if (target && typeof target === 'object' && target.ko) {
+                    keyword = target.ko;
+                } else if (typeof target === 'string') {
+                    keyword = target.trim().replace(/[\s\t]+/g, '%');
+                }
+                const encodedKeyword = encodeURIComponent(keyword);
+
+                if (searchCategory === 'notes') {
+                    // 지폐 (001)
+                    return `https://donmoa.kr/goods/goods_search.php?reSearchKeyword%5B%5D=${encodedKeyword}&reSearchKey%5B%5D=all&sort=&pageNum=20&key=goodsNm&keyword=&cateGoods%5B%5D=001&cateGoods%5B%5D=&cateGoods%5B%5D=&cateGoods%5B%5D=&goodsPrice%5B%5D=&goodsPrice%5B%5D=`;
+                } else if (searchCategory === 'coins') {
+                    // 주화 (002)
+                    return `https://donmoa.kr/goods/goods_search.php?reSearchKeyword%5B%5D=${encodedKeyword}&reSearchKey%5B%5D=all&sort=&pageNum=20&key=goodsNm&keyword=&cateGoods%5B%5D=002&cateGoods%5B%5D=&cateGoods%5B%5D=&cateGoods%5B%5D=&goodsPrice%5B%5D=&goodsPrice%5B%5D=`;
+                } else {
+                    return `https://donmoa.kr/goods/goods_search.php?keyword=${encodedKeyword}&recentCount=10`;
+                }
+            };
+
+            const toggleLang = () => setLang(prev => prev === 'ko' ? 'en' : 'ko');
+
+            const handleCountrySelect = (country) => {
+                setSelectedCountry(country);
+                if (window.innerWidth < 768) setIsSidebarOpen(false);
+            };
+
+            const handleSearchTermChange = (e) => {
+                setSearchTerm(e.target.value);
+                // 검색어 입력 시 선택된 국가 해제 (직접 입력 모드로 전환)
+                if (selectedCountry) {
+                    setSelectedCountry(null);
+                }
+            };
+
+            // 검색어 초기화 (목록만 전체로 되돌리고 선택된 국가는 유지)
+            const clearSearchTerm = () => {
+                setSearchTerm('');
+            };
+
+            // 전체 초기화 (검색어, 선택된 국가 모두 초기화)
+            const resetAll = () => {
+                setSearchTerm('');
+                setSelectedCountry(null);
+                setSearchCategory('all');
+            };
+
+            const displayTarget = selectedCountry ? selectedCountry : (searchTerm ? searchTerm : null);
+
+            return (
+                <div className="flex h-screen bg-gray-100 text-gray-800 overflow-hidden">
+                    {/* --- Sidebar --- */}
+                    <aside 
+                        className={`bg-white shadow-2xl flex flex-col border-r border-gray-200 transition-all duration-300 z-20 absolute md:relative h-full ${
+                            isSidebarOpen ? 'w-80 translate-x-0' : 'w-80 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden'
+                        }`}
+                    >
+                        <div className="p-5 bg-indigo-700 text-white flex justify-between items-center shadow-lg">
+                            <div className="flex items-center space-x-3">
+                                <GlobeIcon size={22} />
+                                <h1 className="font-bold text-xl tracking-tight">
+                                    {lang === 'ko' ? '돈모아 국가검색' : 'Donmoa Search'}
+                                </h1>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                {/* 전체 초기화 버튼 */}
+                                <button 
+                                    onClick={resetAll} 
+                                    className="p-1.5 hover:bg-indigo-600 rounded-full text-indigo-200 hover:text-white transition-colors"
+                                    title={lang === 'ko' ? "전체 초기화" : "Reset All"}
+                                >
+                                    <RotateCcwIcon size={18} />
+                                </button>
+                                <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-indigo-600 rounded text-white transition-colors">
+                                    <ChevronRightIcon size={20} className="transform rotate-180" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Language Toggle */}
+                        <div className="px-5 pt-3 pb-1 bg-indigo-700">
+                            <div className="flex bg-indigo-800 p-1 rounded-lg">
+                                <button 
+                                    onClick={() => setLang('ko')}
+                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'ko' ? 'bg-white text-indigo-800 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                >
+                                    한글
+                                </button>
+                                <button 
+                                    onClick={() => setLang('en')}
+                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'en' ? 'bg-white text-indigo-800 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                >
+                                    ENG
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gray-50 border-b border-gray-200">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder={lang === 'ko' ? "국가명 또는 검색어 입력..." : "Enter country or keyword..."}
+                                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm shadow-sm transition-all"
+                                    value={searchTerm}
+                                    onChange={handleSearchTermChange}
+                                />
+                                <div className="absolute left-3 top-3.5 text-gray-400">
+                                    <SearchIcon size={18} />
+                                </div>
+                                {/* 검색어 삭제(X) 버튼 */}
+                                {searchTerm && (
+                                    <button 
+                                        onClick={clearSearchTerm}
+                                        className="absolute right-3 top-3.5 text-gray-400 hover:text-gray-600 transition-colors"
+                                        title={lang === 'ko' ? "검색어 지우기" : "Clear search"}
+                                    >
+                                        <XIcon size={18} />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* 사이드바 카테고리 선택 버튼 */}
+                            <div className="mt-4">
+                                <div className="text-xs font-bold text-gray-400 mb-1.5 ml-1">
+                                    {lang === 'ko' ? '검색 유형 선택' : 'Search Type'}
+                                </div>
+                                <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
+                                    <button 
+                                        onClick={() => setSearchCategory('all')}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        {lang === 'ko' ? '전체' : 'All'}
+                                    </button>
+                                    <button 
+                                        onClick={() => setSearchCategory('notes')}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'notes' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        {lang === 'ko' ? '지폐' : 'Notes'}
+                                    </button>
+                                    <button 
+                                        onClick={() => setSearchCategory('coins')}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'coins' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    >
+                                        {lang === 'ko' ? '주화' : 'Coins'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto" ref={listRef}>
+                            {filteredCountries.length > 0 ? (
+                                <ul className="divide-y divide-gray-100">
+                                    {filteredCountries.map((country) => (
+                                        <li key={country.ko}>
+                                            <button
+                                                onClick={() => handleCountrySelect(country)}
+                                                className={`w-full text-left px-6 py-4 text-sm transition-all duration-200 flex justify-between items-center group ${
+                                                    selectedCountry?.ko === country.ko 
+                                                        ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' 
+                                                        : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:pl-7'
+                                                }`}
+                                            >
+                                                <span>{country[lang]}</span>
+                                                {selectedCountry?.ko === country.ko && <ChevronRightIcon size={16} />}
+                                                {selectedCountry?.ko !== country.ko && (
+                                                    <span className="opacity-0 group-hover:opacity-100 text-gray-400">
+                                                        <ChevronRightIcon size={14} />
+                                                    </span>
+                                                )}
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-8 text-center text-gray-500 text-sm">
+                                    {lang === 'ko' ? '일치하는 국가가 없으면 직접 입력한 검색어로 검색됩니다.' : 'If no country matches, search with your keyword.'}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+
+                    {/* --- Main Content --- */}
+                    <main className="flex-1 flex flex-col h-full relative w-full bg-slate-50 items-center justify-center p-6">
+                        
+                        {/* Mobile Menu Toggle */}
+                        {!isSidebarOpen && (
+                            <button
+                                onClick={() => setIsSidebarOpen(true)}
+                                className="absolute left-4 top-4 z-30 p-2 bg-white rounded-lg shadow-md border border-gray-200 text-gray-700 md:hidden hover:bg-gray-50"
+                            >
+                                <MenuIcon size={24} />
+                            </button>
+                        )}
+                        {!isSidebarOpen && (
+                            <button onClick={() => setIsSidebarOpen(true)} className="hidden md:block absolute left-0 top-1/2 transform -translate-y-1/2 z-30 p-2 bg-white rounded-r-xl shadow-md border border-l-0 border-gray-200 text-gray-500 hover:text-indigo-600 transition-all hover:pl-3">
+                                <ChevronRightIcon size={24} />
+                            </button>
+                        )}
+
+                        {displayTarget ? (
+                            <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in-up">
+                                {/* Header Card */}
+                                <div className={`p-8 text-white text-center bg-gradient-to-r ${selectedCountry ? 'from-indigo-600 to-blue-500' : 'from-emerald-500 to-teal-500'}`}>
+                                    <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-inner">
+                                        {selectedCountry ? <GlobeIcon size={40} className="text-white" /> : <KeyboardIcon size={40} className="text-white" />}
+                                    </div>
+                                    <h2 className="text-3xl font-bold mb-2 break-keep">
+                                        {selectedCountry ? selectedCountry[lang] : (lang === 'ko' ? '직접 검색' : 'Custom Search')}
+                                    </h2>
+                                    <p className="text-white/80 text-sm">
+                                        {selectedCountry 
+                                            ? (lang === 'ko' ? '돈모아 화폐/동전 검색' : 'Donmoa Currency/Coin Search')
+                                            : (lang === 'ko' ? `검색어: "${searchTerm}"` : `Keyword: "${searchTerm}"`)
+                                        }
+                                    </p>
+                                </div>
+
+                                {/* Body Card */}
+                                <div className="p-8 md:p-12 space-y-6">
+                                    <div className="flex justify-center space-x-2 mb-2 p-1 bg-gray-100 rounded-full w-fit mx-auto">
+                                        {/* Category Selectors */}
+                                        <button 
+                                            onClick={() => setSearchCategory('all')}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'all' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            {lang === 'ko' ? '전체' : 'All'}
+                                        </button>
+                                        <button 
+                                            onClick={() => setSearchCategory('notes')}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'notes' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            {lang === 'ko' ? '지폐' : 'Notes'}
+                                        </button>
+                                        <button 
+                                            onClick={() => setSearchCategory('coins')}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'coins' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                        >
+                                            {lang === 'ko' ? '주화' : 'Coins'}
+                                        </button>
+                                    </div>
+
+                                    <p className="text-gray-600 text-center mb-4 leading-relaxed">
+                                        {lang === 'ko' ? (
+                                            <>
+                                                아래 버튼을 누르면 <strong>새 탭</strong>에서<br/> 
+                                                <span className={`${selectedCountry ? 'text-indigo-600' : 'text-emerald-600'} font-semibold break-all`}>
+                                                    {selectedCountry ? selectedCountry.ko : searchTerm}
+                                                </span> 
+                                                {selectedCountry ? ' 관련' : ' '} 상품 및 화폐 정보를 바로 확인하실 수 있습니다.
+                                            </>
+                                        ) : (
+                                            <>
+                                                Click the button below to view<br/> 
+                                                <span className={`${selectedCountry ? 'text-indigo-600' : 'text-emerald-600'} font-semibold break-all`}>
+                                                    {selectedCountry ? selectedCountry.en : searchTerm}
+                                                </span> 
+                                                {selectedCountry ? ' currency & product info' : ' search results'} in a <strong>new tab</strong>.
+                                            </>
+                                        )}
+                                    </p>
+                                    
+                                    {/* Primary Action Button */}
+                                    <a 
+                                        href={getSearchUrl(displayTarget)}
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className={`group flex items-center justify-center w-full text-white text-lg font-bold py-5 px-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ring-4 ring-transparent ${selectedCountry ? 'bg-indigo-600 hover:bg-indigo-700 hover:ring-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 hover:ring-emerald-100'}`}
+                                    >
+                                        <span>
+                                            {lang === 'ko' ? '돈모아 검색 결과 보기' : 'Search on Donmoa'}
+                                        </span>
+                                        <ExternalLinkIcon size={20} className="ml-3 group-hover:translate-x-1 transition-transform" />
+                                    </a>
+
+                                    <div className="pt-6 border-t border-gray-100 text-center">
+                                        <p className="text-xs text-gray-400">
+                                            {lang === 'ko' 
+                                                ? '* 보안 정책상 외부 사이트는 새 창에서 열립니다.' 
+                                                : '* External sites open in a new window due to security policy.'}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            /* Empty State */
+                            <div className="text-center p-10 max-w-md opacity-80">
+                                <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6 text-gray-400">
+                                    <LinkIcon size={40} />
+                                </div>
+                                <h3 className="text-2xl font-bold text-gray-700 mb-3">
+                                    {lang === 'ko' ? '국가 또는 검색어를 입력하세요' : 'Select Country or Enter Keyword'}
+                                </h3>
+                                <p className="text-gray-500 leading-relaxed">
+                                    {lang === 'ko' ? (
+                                        <>
+                                            왼쪽 목록에서 국가를 클릭하거나<br/>
+                                            직접 검색어를 입력하면 <strong className="text-indigo-600">돈모아</strong> 바로가기 버튼이 생성됩니다.
+                                        </>
+                                    ) : (
+                                        <>
+                                            Select a country from the list or<br/>
+                                            type a keyword to generate a <strong className="text-indigo-600">Donmoa</strong> shortcut button.
+                                        </>
+                                    )}
+                                </p>
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
