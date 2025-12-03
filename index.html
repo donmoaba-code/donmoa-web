@@ -15,6 +15,25 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
+    <!-- Tailwind Config for Donmoa Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        donmoa: {
+                            navy: '#2a3042',    // 돈모아 메인 네이비
+                            dark: '#222736',    // 더 짙은 네이비
+                            orange: '#f36523',  // 돈모아 포인트 오렌지
+                            orangeLight: '#ff8a50',
+                            bg: '#f3f4f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
         body { 
             font-family: 'Noto Sans KR', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial; 
@@ -27,6 +46,15 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .loading-fallback { display: flex; height: 100vh; justify-content: center; align-items: center; font-size: 1.2rem; color: #666; }
+        
+        /* Animation */
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+            animation: fade-in-up 0.4s ease-out forwards;
+        }
     </style>
 </head>
 <body>
@@ -57,19 +85,28 @@
             const [selectedCountry, setSelectedCountry] = useState(null);
             const [searchTerm, setSearchTerm] = useState('');
             const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-            const [lang, setLang] = useState('ko'); // 'ko' or 'en'
-            const [searchCategory, setSearchCategory] = useState('all'); // 'all', 'notes', 'coins'
+            const [lang, setLang] = useState('ko'); 
+            const [searchCategory, setSearchCategory] = useState('all');
             
-            // 사이드바 리스트 스크롤 제어를 위한 Ref
             const listRef = useRef(null);
 
             useEffect(() => {
                 const handleResize = () => {
-                    if (window.innerWidth < 768) setIsSidebarOpen(false);
-                    else setIsSidebarOpen(true);
+                    // PC 화면(768px 이상)으로 커지면 사이드바를 강제로 엽니다.
+                    // 모바일에서는 키보드가 올라오면서 화면 크기가 바뀔 수 있으므로
+                    // 강제로 닫는 로직(else { setIsSidebarOpen(false) })을 제거하여
+                    // 입력 중에 사이드바가 사라지는 오류를 해결했습니다.
+                    if (window.innerWidth >= 768) {
+                        setIsSidebarOpen(true);
+                    }
                 };
+
+                // 초기 로딩 시에만 모바일인지 확인하여 닫아둡니다.
+                if (window.innerWidth < 768) {
+                    setIsSidebarOpen(false);
+                }
+
                 window.addEventListener('resize', handleResize);
-                handleResize();
                 return () => window.removeEventListener('resize', handleResize);
             }, []);
 
@@ -105,7 +142,7 @@
                 return result;
             }, [countries, searchTerm, lang]);
 
-            // 검색 조건이 바뀔 때마다 스크롤을 맨 위로 초기화 (남아프리카 이후부터 보이는 버그 수정)
+            // 검색 조건이 바뀔 때마다 스크롤을 맨 위로 초기화
             useEffect(() => {
                 if (listRef.current) {
                     listRef.current.scrollTop = 0;
@@ -123,10 +160,8 @@
                 const encodedKeyword = encodeURIComponent(keyword);
 
                 if (searchCategory === 'notes') {
-                    // 지폐 (001)
                     return `https://donmoa.kr/goods/goods_search.php?reSearchKeyword%5B%5D=${encodedKeyword}&reSearchKey%5B%5D=all&sort=&pageNum=20&key=goodsNm&keyword=&cateGoods%5B%5D=001&cateGoods%5B%5D=&cateGoods%5B%5D=&cateGoods%5B%5D=&goodsPrice%5B%5D=&goodsPrice%5B%5D=`;
                 } else if (searchCategory === 'coins') {
-                    // 주화 (002)
                     return `https://donmoa.kr/goods/goods_search.php?reSearchKeyword%5B%5D=${encodedKeyword}&reSearchKey%5B%5D=all&sort=&pageNum=20&key=goodsNm&keyword=&cateGoods%5B%5D=002&cateGoods%5B%5D=&cateGoods%5B%5D=&cateGoods%5B%5D=&goodsPrice%5B%5D=&goodsPrice%5B%5D=`;
                 } else {
                     return `https://donmoa.kr/goods/goods_search.php?keyword=${encodedKeyword}&recentCount=10`;
@@ -142,18 +177,15 @@
 
             const handleSearchTermChange = (e) => {
                 setSearchTerm(e.target.value);
-                // 검색어 입력 시 선택된 국가 해제 (직접 입력 모드로 전환)
                 if (selectedCountry) {
                     setSelectedCountry(null);
                 }
             };
 
-            // 검색어 초기화 (목록만 전체로 되돌리고 선택된 국가는 유지)
             const clearSearchTerm = () => {
                 setSearchTerm('');
             };
 
-            // 전체 초기화 (검색어, 선택된 국가 모두 초기화)
             const resetAll = () => {
                 setSearchTerm('');
                 setSelectedCountry(null);
@@ -163,16 +195,19 @@
             const displayTarget = selectedCountry ? selectedCountry : (searchTerm ? searchTerm : null);
 
             return (
-                <div className="flex h-screen bg-gray-100 text-gray-800 overflow-hidden">
+                <div className="flex h-screen bg-donmoa-bg text-gray-800 overflow-hidden">
                     {/* --- Sidebar --- */}
                     <aside 
                         className={`bg-white shadow-2xl flex flex-col border-r border-gray-200 transition-all duration-300 z-20 absolute md:relative h-full ${
-                            isSidebarOpen ? 'w-80 translate-x-0' : 'w-80 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden'
+                            // 수정됨: w-80 -> w-full md:w-80
+                            // 모바일에서는 화면 전체 너비(w-full)를 차지하도록 하여 PC처럼 전체 화면으로 보이게 함
+                            isSidebarOpen ? 'w-full md:w-80 translate-x-0' : 'w-full md:w-80 -translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden'
                         }`}
                     >
-                        <div className="p-5 bg-indigo-700 text-white flex justify-between items-center shadow-lg">
+                        {/* Header: Donmoa Navy */}
+                        <div className="p-5 bg-donmoa-navy text-white flex justify-between items-center shadow-lg">
                             <div className="flex items-center space-x-3">
-                                <GlobeIcon size={22} />
+                                <GlobeIcon size={22} className="text-donmoa-orange" />
                                 <h1 className="font-bold text-xl tracking-tight">
                                     {lang === 'ko' ? '돈모아 국가검색' : 'Donmoa Search'}
                                 </h1>
@@ -181,29 +216,29 @@
                                 {/* 전체 초기화 버튼 */}
                                 <button 
                                     onClick={resetAll} 
-                                    className="p-1.5 hover:bg-indigo-600 rounded-full text-indigo-200 hover:text-white transition-colors"
+                                    className="p-1.5 hover:bg-donmoa-dark rounded-full text-gray-300 hover:text-white transition-colors"
                                     title={lang === 'ko' ? "전체 초기화" : "Reset All"}
                                 >
                                     <RotateCcwIcon size={18} />
                                 </button>
-                                <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-indigo-600 rounded text-white transition-colors">
+                                <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 hover:bg-donmoa-dark rounded text-white transition-colors">
                                     <ChevronRightIcon size={20} className="transform rotate-180" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Language Toggle */}
-                        <div className="px-5 pt-3 pb-1 bg-indigo-700">
-                            <div className="flex bg-indigo-800 p-1 rounded-lg">
+                        {/* Language Toggle: Darker Navy bg, Orange Accent */}
+                        <div className="px-5 pt-3 pb-1 bg-donmoa-navy">
+                            <div className="flex bg-donmoa-dark p-1 rounded-lg">
                                 <button 
                                     onClick={() => setLang('ko')}
-                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'ko' ? 'bg-white text-indigo-800 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'ko' ? 'bg-white text-donmoa-navy shadow-sm' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     한글
                                 </button>
                                 <button 
                                     onClick={() => setLang('en')}
-                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'en' ? 'bg-white text-indigo-800 shadow-sm' : 'text-indigo-200 hover:text-white'}`}
+                                    className={`flex-1 py-1 text-xs font-bold rounded-md transition-all ${lang === 'en' ? 'bg-white text-donmoa-navy shadow-sm' : 'text-gray-400 hover:text-white'}`}
                                 >
                                     ENG
                                 </button>
@@ -215,7 +250,7 @@
                                 <input
                                     type="text"
                                     placeholder={lang === 'ko' ? "국가명 또는 검색어 입력..." : "Enter country or keyword..."}
-                                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm shadow-sm transition-all"
+                                    className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-donmoa-orange focus:border-transparent text-sm shadow-sm transition-all"
                                     value={searchTerm}
                                     onChange={handleSearchTermChange}
                                 />
@@ -242,19 +277,19 @@
                                 <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm">
                                     <button 
                                         onClick={() => setSearchCategory('all')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'all' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'all' ? 'bg-donmoa-orange text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                                     >
                                         {lang === 'ko' ? '전체' : 'All'}
                                     </button>
                                     <button 
                                         onClick={() => setSearchCategory('notes')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'notes' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'notes' ? 'bg-donmoa-orange text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                                     >
                                         {lang === 'ko' ? '지폐' : 'Notes'}
                                     </button>
                                     <button 
                                         onClick={() => setSearchCategory('coins')}
-                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'coins' ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${searchCategory === 'coins' ? 'bg-donmoa-orange text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
                                     >
                                         {lang === 'ko' ? '주화' : 'Coins'}
                                     </button>
@@ -271,8 +306,8 @@
                                                 onClick={() => handleCountrySelect(country)}
                                                 className={`w-full text-left px-6 py-4 text-sm transition-all duration-200 flex justify-between items-center group ${
                                                     selectedCountry?.ko === country.ko 
-                                                        ? 'bg-indigo-50 text-indigo-700 font-bold border-l-4 border-indigo-600' 
-                                                        : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600 hover:pl-7'
+                                                        ? 'bg-orange-50 text-donmoa-orange font-bold border-l-4 border-donmoa-orange' 
+                                                        : 'text-gray-700 hover:bg-gray-50 hover:text-donmoa-orange hover:pl-7'
                                                 }`}
                                             >
                                                 <span>{country[lang]}</span>
@@ -307,17 +342,17 @@
                             </button>
                         )}
                         {!isSidebarOpen && (
-                            <button onClick={() => setIsSidebarOpen(true)} className="hidden md:block absolute left-0 top-1/2 transform -translate-y-1/2 z-30 p-2 bg-white rounded-r-xl shadow-md border border-l-0 border-gray-200 text-gray-500 hover:text-indigo-600 transition-all hover:pl-3">
+                            <button onClick={() => setIsSidebarOpen(true)} className="hidden md:block absolute left-0 top-1/2 transform -translate-y-1/2 z-30 p-2 bg-white rounded-r-xl shadow-md border border-l-0 border-gray-200 text-gray-500 hover:text-donmoa-orange transition-all hover:pl-3">
                                 <ChevronRightIcon size={24} />
                             </button>
                         )}
 
                         {displayTarget ? (
                             <div className="max-w-2xl w-full bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 animate-fade-in-up">
-                                {/* Header Card */}
-                                <div className={`p-8 text-white text-center bg-gradient-to-r ${selectedCountry ? 'from-indigo-600 to-blue-500' : 'from-emerald-500 to-teal-500'}`}>
-                                    <div className="bg-white/20 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-inner">
-                                        {selectedCountry ? <GlobeIcon size={40} className="text-white" /> : <KeyboardIcon size={40} className="text-white" />}
+                                {/* Header Card: Navy Gradient */}
+                                <div className={`p-8 text-white text-center bg-gradient-to-r ${selectedCountry ? 'from-donmoa-navy to-slate-700' : 'from-slate-600 to-slate-500'}`}>
+                                    <div className="bg-white/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm shadow-inner border border-white/20">
+                                        {selectedCountry ? <GlobeIcon size={40} className="text-donmoa-orange" /> : <KeyboardIcon size={40} className="text-donmoa-orange" />}
                                     </div>
                                     <h2 className="text-3xl font-bold mb-2 break-keep">
                                         {selectedCountry ? selectedCountry[lang] : (lang === 'ko' ? '직접 검색' : 'Custom Search')}
@@ -336,19 +371,19 @@
                                         {/* Category Selectors */}
                                         <button 
                                             onClick={() => setSearchCategory('all')}
-                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'all' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'all' ? 'bg-white text-donmoa-orange shadow-sm ring-1 ring-donmoa-orange' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             {lang === 'ko' ? '전체' : 'All'}
                                         </button>
                                         <button 
                                             onClick={() => setSearchCategory('notes')}
-                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'notes' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'notes' ? 'bg-white text-donmoa-orange shadow-sm ring-1 ring-donmoa-orange' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             {lang === 'ko' ? '지폐' : 'Notes'}
                                         </button>
                                         <button 
                                             onClick={() => setSearchCategory('coins')}
-                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'coins' ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-gray-500 hover:text-gray-700'}`}
+                                            className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${searchCategory === 'coins' ? 'bg-white text-donmoa-orange shadow-sm ring-1 ring-donmoa-orange' : 'text-gray-500 hover:text-gray-700'}`}
                                         >
                                             {lang === 'ko' ? '주화' : 'Coins'}
                                         </button>
@@ -358,7 +393,7 @@
                                         {lang === 'ko' ? (
                                             <>
                                                 아래 버튼을 누르면 <strong>새 탭</strong>에서<br/> 
-                                                <span className={`${selectedCountry ? 'text-indigo-600' : 'text-emerald-600'} font-semibold break-all`}>
+                                                <span className={`${selectedCountry ? 'text-donmoa-orange' : 'text-slate-600'} font-semibold break-all`}>
                                                     {selectedCountry ? selectedCountry.ko : searchTerm}
                                                 </span> 
                                                 {selectedCountry ? ' 관련' : ' '} 상품 및 화폐 정보를 바로 확인하실 수 있습니다.
@@ -366,7 +401,7 @@
                                         ) : (
                                             <>
                                                 Click the button below to view<br/> 
-                                                <span className={`${selectedCountry ? 'text-indigo-600' : 'text-emerald-600'} font-semibold break-all`}>
+                                                <span className={`${selectedCountry ? 'text-donmoa-orange' : 'text-slate-600'} font-semibold break-all`}>
                                                     {selectedCountry ? selectedCountry.en : searchTerm}
                                                 </span> 
                                                 {selectedCountry ? ' currency & product info' : ' search results'} in a <strong>new tab</strong>.
@@ -374,12 +409,12 @@
                                         )}
                                     </p>
                                     
-                                    {/* Primary Action Button */}
+                                    {/* Primary Action Button: Donmoa Orange */}
                                     <a 
                                         href={getSearchUrl(displayTarget)}
                                         target="_blank" 
                                         rel="noopener noreferrer"
-                                        className={`group flex items-center justify-center w-full text-white text-lg font-bold py-5 px-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ring-4 ring-transparent ${selectedCountry ? 'bg-indigo-600 hover:bg-indigo-700 hover:ring-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 hover:ring-emerald-100'}`}
+                                        className={`group flex items-center justify-center w-full text-white text-lg font-bold py-5 px-8 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ring-4 ring-transparent ${selectedCountry ? 'bg-donmoa-orange hover:bg-orange-600 hover:ring-orange-100' : 'bg-slate-600 hover:bg-slate-700 hover:ring-slate-200'}`}
                                     >
                                         <span>
                                             {lang === 'ko' ? '돈모아 검색 결과 보기' : 'Search on Donmoa'}
@@ -409,12 +444,12 @@
                                     {lang === 'ko' ? (
                                         <>
                                             왼쪽 목록에서 국가를 클릭하거나<br/>
-                                            직접 검색어를 입력하면 <strong className="text-indigo-600">돈모아</strong> 바로가기 버튼이 생성됩니다.
+                                            직접 검색어를 입력하면 <strong className="text-donmoa-orange">돈모아</strong> 바로가기 버튼이 생성됩니다.
                                         </>
                                     ) : (
                                         <>
                                             Select a country from the list or<br/>
-                                            type a keyword to generate a <strong className="text-indigo-600">Donmoa</strong> shortcut button.
+                                            type a keyword to generate a <strong className="text-donmoa-orange">Donmoa</strong> shortcut button.
                                         </>
                                     )}
                                 </p>
