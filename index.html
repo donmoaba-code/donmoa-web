@@ -73,7 +73,7 @@
             cateCd: '003',
             label: '한국지폐',
             children: [
-                { cateCd: '003001', label: '전환기(1876~1910) 지폐' },
+                { cateCd: '003001', label: '구한말지폐(1876~1910)' },
                 {
                     cateCd: '003002',
                     label: '조선은행권',
@@ -404,7 +404,7 @@
                 <div className="h-screen p-2 overflow-hidden">
                     <div className="w-full max-w-5xl mx-auto h-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col">
                         
-                        <div className="bg-white px-4 py-2 border-b border-gray-100 flex justify-between items-center shrink-0">
+                        <div className="bg-white px-4 py-2 border-b border-gray-100 grid grid-cols-3 items-center shrink-0">
                             <div>
                                 <h1 className="text-lg font-extrabold text-amber-900 flex items-center gap-2">
                                     <span className="text-amber-600">{Icons.Search}</span>
@@ -414,7 +414,12 @@
                                     <b>새 창</b>에서 <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline">donmoa.kr</a> 검색 · 단계별 <b>AND</b> 지원
                                 </p>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex justify-center items-center">
+                                <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer">
+                                    <img src="donmoa_logo.png" alt="돈모아 화폐수집전문점" className="h-10 w-auto object-contain" />
+                                </a>
+                            </div>
+                            <div className="flex items-center justify-end gap-1.5">
                                 <button
                                     onClick={executeSearch}
                                     className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-md shadow transition-colors"
