@@ -24,6 +24,7 @@
 
     <div id="root"></div>
 
+    <script src="foreign_banknote_data.js"></script>
     <script type="text/babel">
         const { useState } = React;
 
@@ -191,19 +192,151 @@
         const buildCateSlots = (cateCd) => {
             const slots = ['', '', '', ''];
             if (!cateCd) return slots;
-            if (cateCd.length > 3) {
-                slots[0] = cateCd.substring(0, 3);
-                slots[1] = cateCd;
+            if (cateCd.length <= 3) {
+                slots[0] = cateCd;
                 return slots;
             }
-            const cat = CATEGORIES.find(c => c.id === cateCd);
-            if (cat) slots[cat.slot] = cateCd;
+            const levelCount = cateCd.length / 3;
+            for (let i = 0; i < Math.min(levelCount, 4); i++) {
+                slots[i] = cateCd.substring(0, (i + 1) * 3);
+            }
             return slots;
+        };
+
+        const FOREIGN_CATALOG_SORT = [
+            { value: 'ko', label: '한글국가명순' },
+            { value: 'en', label: '영문국가명순' },
+            { value: 'major', label: '대분류순' },
+        ];
+
+        const sortTreeChildren = (node, mode) => {
+            if (!node.children || node.children.length === 0) return { ...node };
+            const children = node.children.map(child => sortTreeChildren(child, mode));
+            const sorted = [...children].sort((a, b) => {
+                if (mode === 'major') return (a.order ?? 0) - (b.order ?? 0);
+                if (mode === 'en') {
+                    const ae = (a.labelEn || a.label || '').toLowerCase();
+                    const be = (b.labelEn || b.label || '').toLowerCase();
+                    return ae.localeCompare(be, 'en');
+                }
+                const ak = a.labelKo || a.label || '';
+                const bk = b.labelKo || b.label || '';
+                return ak.localeCompare(bk, 'ko');
+            });
+            return { ...node, children: sorted };
+        };
+
+        const getSortedForeignTree = () => {
+            if (typeof FOREIGN_BANKNOTE_RAW === 'undefined') {
+                return { cateCd: '001', label: '외국지폐', children: [] };
+            }
+            return sortTreeChildren(FOREIGN_BANKNOTE_RAW, 'major');
+        };
+
+        const collectNineDigitNodes = (node, result = []) => {
+            if (node.cateCd && node.cateCd.length === 9) {
+                result.push(node);
+            }
+            if (node.children) {
+                node.children.forEach(child => collectNineDigitNodes(child, result));
+            }
+            return result;
+        };
+
+        const isBritishOrFrenchTerritory = (cateCd) =>
+            cateCd.startsWith('001009') || cateCd.startsWith('001005');
+
+        const getCountryLabelKey = (node, mode) =>
+            mode === 'en' ? (node.labelEn || node.label || '') : (node.labelKo || node.label || '');
+
+        const findNodeByCateCd = (node, code) => {
+            if (node.cateCd === code) return node;
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNodeByCateCd(child, code);
+                    if (found) return found;
+                }
+            }
+            return null;
+        };
+
+        const dedupeBritishFrenchTerritories = (countries, mode) => {
+            const byLabel = {};
+            countries.forEach(node => {
+                const key = getCountryLabelKey(node, mode);
+                if (!byLabel[key]) byLabel[key] = [];
+                byLabel[key].push(node);
+            });
+            return countries.filter(node => {
+                const key = getCountryLabelKey(node, mode);
+                if (byLabel[key].length <= 1) return true;
+                return !isBritishOrFrenchTerritory(node.cateCd);
+            });
+        };
+
+        const getForeignFlatCountries = (mode) => {
+            if (typeof FOREIGN_BANKNOTE_RAW === 'undefined') return [];
+            let countries = collectNineDigitNodes(FOREIGN_BANKNOTE_RAW);
+            countries = dedupeBritishFrenchTerritories(countries, mode);
+
+            const testNote = findNodeByCateCd(FOREIGN_BANKNOTE_RAW, '001013');
+            if (testNote && !countries.some(c => c.cateCd === '001013')) {
+                countries.push(testNote);
+            }
+
+            return [...countries].sort((a, b) => {
+                if (mode === 'en') {
+                    const ae = (a.labelEn || a.label || '').toLowerCase();
+                    const be = (b.labelEn || b.label || '').toLowerCase();
+                    return ae.localeCompare(be, 'en');
+                }
+                const ak = a.labelKo || a.label || '';
+                const bk = b.labelKo || b.label || '';
+                return ak.localeCompare(bk, 'ko');
+            });
         };
 
         const parseKeywordParts = (keyword) => keyword.split('%').map(k => k.trim()).filter(Boolean);
 
-        function CatalogTree({ tree, expanded, onToggle, selectedId, onSelect }) {
+        function ForeignCountryList({ countries, sortMode, selectedId, onSelect, onSelectAndSearch }) {
+            return (
+                <div className="flex-1 min-h-0 overflow-y-auto border border-amber-100 rounded-lg bg-amber-50/30 p-2">
+                    {countries.map(node => {
+                        const itemId = node.cateCd;
+                        const isSelected = selectedId === itemId;
+                        const displayLabel = sortMode === 'en' && node.labelEn
+                            ? node.labelEn
+                            : (node.labelKo || node.label);
+                        const subLabel = sortMode === 'en'
+                            ? (node.labelKo || node.label)
+                            : (node.labelEn || '');
+                        const selection = { type: 'category', cateCd: node.cateCd, id: itemId, label: displayLabel };
+                        return (
+                            <div
+                                key={itemId}
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => { e.currentTarget.focus(); onSelect(selection); }}
+                                onDoubleClick={(e) => { e.preventDefault(); onSelectAndSearch(selection); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        onSelectAndSearch(selection);
+                                    }
+                                }}
+                                className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer text-sm transition-colors outline-none focus:ring-2 focus:ring-amber-400 ${isSelected ? 'bg-amber-100 text-amber-900 font-bold' : 'hover:bg-slate-50 text-gray-700'}`}
+                            >
+                                <span className="text-amber-400 text-sm">●</span>
+                                <span className="flex-1">{displayLabel}</span>
+                                {subLabel && <span className="text-xs text-gray-400">{subLabel}</span>}
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        function CatalogTree({ tree, expanded, onToggle, selectedId, onSelect, onSelectAndSearch, categoryFastSearch = false, itemFastSearch = false }) {
             const renderNode = (node, depth = 0, parentCateCd = null) => {
                 const nodeId = node.cateCd || node.label;
                 const hasChildren = node.children && node.children.length > 0;
@@ -214,11 +347,21 @@
                     const itemId = `kw-${node.label}`;
                     const itemSelected = selectedId === itemId;
                     const targetCate = node.cateCd || parentCateCd || '003';
+                    const selection = { type: 'item', cateCd: targetCate, id: itemId, label: node.label, keyword: node.keyword };
                     return (
                         <div
                             key={itemId}
-                            onClick={() => onSelect({ type: 'item', cateCd: targetCate, id: itemId, label: node.label, keyword: node.keyword })}
-                            className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer text-sm transition-colors ${itemSelected ? 'bg-amber-100 text-amber-900 font-bold' : 'hover:bg-slate-50 text-gray-600'}`}
+                            role={itemFastSearch ? 'button' : undefined}
+                            tabIndex={itemFastSearch ? 0 : undefined}
+                            onClick={(e) => { e.currentTarget.focus(); onSelect(selection); }}
+                            onDoubleClick={itemFastSearch ? (e) => { e.preventDefault(); onSelectAndSearch(selection); } : undefined}
+                            onKeyDown={itemFastSearch ? (e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    onSelectAndSearch(selection);
+                                }
+                            } : undefined}
+                            className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer text-sm transition-colors ${itemFastSearch ? 'outline-none focus:ring-2 focus:ring-amber-400' : ''} ${itemSelected ? 'bg-amber-100 text-amber-900 font-bold' : 'hover:bg-slate-50 text-gray-600'}`}
                             style={{ paddingLeft: `${depth * 18 + 28}px` }}
                         >
                             <span className="text-amber-400 text-sm">●</span>
@@ -246,22 +389,44 @@
                                 {isExpanded ? Icons.ChevronDown : Icons.ChevronRight}
                             </button>
                             <span
-                                className="flex-1 text-sm"
-                                onClick={() => onSelect({ type: 'category', cateCd: node.cateCd, id: nodeId, label: node.label })}
+                                className={`flex-1 text-sm ${categoryFastSearch ? 'outline-none focus:ring-2 focus:ring-amber-400 rounded' : ''}`}
+                                role={categoryFastSearch ? 'button' : undefined}
+                                tabIndex={categoryFastSearch ? 0 : undefined}
+                                onClick={(e) => { e.currentTarget.focus(); onSelect({ type: 'category', cateCd: node.cateCd, id: nodeId, label: node.label }); }}
+                                onDoubleClick={categoryFastSearch ? (e) => {
+                                    e.preventDefault();
+                                    onSelectAndSearch({ type: 'category', cateCd: node.cateCd, id: nodeId, label: node.label });
+                                } : undefined}
+                                onKeyDown={categoryFastSearch ? (e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        onSelectAndSearch({ type: 'category', cateCd: node.cateCd, id: nodeId, label: node.label });
+                                    }
+                                } : undefined}
                             >
                                 {node.label}
-                                {node.cateCd && <span className="ml-1 text-xs text-gray-400 font-normal">({node.cateCd})</span>}
+                                {node.labelEn && <span className="ml-1 text-xs text-gray-400 font-normal">{node.labelEn}</span>}
                             </span>
                         </div>
                         {isExpanded && hasChildren && node.children.map(child => renderNode(child, depth + 1, node.cateCd))}
                         {isExpanded && hasItems && node.items.map((item, idx) => {
                             const itemId = `${node.cateCd}-${idx}`;
                             const itemSelected = selectedId === itemId;
+                            const selection = { type: 'item', cateCd: node.cateCd, id: itemId, label: item.label, keyword: item.keyword };
                             return (
                                 <div
                                     key={itemId}
-                                    onClick={() => onSelect({ type: 'item', cateCd: node.cateCd, id: itemId, label: item.label, keyword: item.keyword })}
-                                    className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer text-sm transition-colors ${itemSelected ? 'bg-amber-100 text-amber-900 font-bold' : 'hover:bg-slate-50 text-gray-600'}`}
+                                    role={itemFastSearch ? 'button' : undefined}
+                                    tabIndex={itemFastSearch ? 0 : undefined}
+                                    onClick={(e) => { e.currentTarget.focus(); onSelect(selection); }}
+                                    onDoubleClick={itemFastSearch ? (e) => { e.preventDefault(); onSelectAndSearch(selection); } : undefined}
+                                    onKeyDown={itemFastSearch ? (e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            onSelectAndSearch(selection);
+                                        }
+                                    } : undefined}
+                                    className={`flex items-center gap-2 py-2.5 px-2 rounded-lg cursor-pointer text-sm transition-colors ${itemFastSearch ? 'outline-none focus:ring-2 focus:ring-amber-400' : ''} ${itemSelected ? 'bg-amber-100 text-amber-900 font-bold' : 'hover:bg-slate-50 text-gray-600'}`}
                                     style={{ paddingLeft: `${(depth + 1) * 18 + 28}px` }}
                                 >
                                     <span className="text-amber-400 text-sm">●</span>
@@ -292,15 +457,22 @@
             const [selectedCat, setSelectedCat] = useState('');
             const [selectedCatalogId, setSelectedCatalogId] = useState('');
             const [selectedCatalogLabel, setSelectedCatalogLabel] = useState('');
-            const [expandedNodes, setExpandedNodes] = useState(new Set(['003']));
+            const [expandedNodes, setExpandedNodes] = useState(new Set());
+            const [foreignTreeSort, setForeignTreeSort] = useState('ko');
             const [sortMethod, setSortMethod] = useState('');
             const [itemsPerPage, setItemsPerPage] = useState('20');
 
             const isKoreanBanknote = selectedCat === '003' || (selectedCat && selectedCat.startsWith('003'));
+            const isForeignBanknote = selectedCat === '001' || (selectedCat && selectedCat.startsWith('001'));
+            const isCatalogOpen = isKoreanBanknote || isForeignBanknote;
+            const foreignTree = getSortedForeignTree();
+            const foreignFlatCountries = foreignTreeSort !== 'major'
+                ? getForeignFlatCountries(foreignTreeSort)
+                : [];
 
             const handleCategoryClick = (id) => {
                 if (id === '003') {
-                    if (selectedCat === '003' || selectedCat.startsWith('003')) {
+                    if (isKoreanBanknote) {
                         setSelectedCat('');
                         setSelectedCatalogId('');
                         setSelectedCatalogLabel('');
@@ -309,6 +481,20 @@
                         setSelectedCatalogId('003');
                         setSelectedCatalogLabel('한국지폐');
                         setExpandedNodes(new Set(['003']));
+                    }
+                    return;
+                }
+                if (id === '001') {
+                    if (isForeignBanknote) {
+                        setSelectedCat('');
+                        setSelectedCatalogId('');
+                        setSelectedCatalogLabel('');
+                    } else {
+                        setSelectedCat('001');
+                        setSelectedCatalogId('001');
+                        setSelectedCatalogLabel('외국지폐');
+                        setForeignTreeSort('ko');
+                        setExpandedNodes(new Set(['001']));
                     }
                     return;
                 }
@@ -338,8 +524,12 @@
                 }
                 setExpandedNodes(prev => {
                     const next = new Set(prev);
-                    next.add('003');
-                    if (selection.cateCd && selection.cateCd.length > 3) next.add(selection.cateCd);
+                    if (!selection.cateCd) return next;
+                    const root = selection.cateCd.substring(0, 3);
+                    next.add(root);
+                    for (let len = 6; len <= selection.cateCd.length; len += 3) {
+                        next.add(selection.cateCd.substring(0, len));
+                    }
                     return next;
                 });
             };
@@ -365,16 +555,17 @@
             const resetAll = () => {
                 setInputValue(''); setKeywords([]); setSelectedCat('');
                 setSelectedCatalogId(''); setSelectedCatalogLabel('');
-                setExpandedNodes(new Set(['003']));
+                setExpandedNodes(new Set());
+                setForeignTreeSort('ko');
                 setSortMethod(''); setItemsPerPage('20');
             };
 
-            const buildSearchUrl = (searchKeywords) => {
+            const buildSearchUrl = (searchKeywords, cateCd = selectedCat) => {
                 const baseUrl = 'https://donmoa.kr/goods/goods_search.php';
                 const combinedKeyword = joinKeywordsForSearch(searchKeywords);
 
-                if (selectedCat) {
-                    const slots = buildCateSlots(selectedCat);
+                if (cateCd) {
+                    const slots = buildCateSlots(cateCd);
 
                     const params = ['mode=quick'];
                     slots.forEach(val => params.push(`quickCateGoods[]=${val}`));
@@ -389,6 +580,14 @@
                 if (sortMethod) params.push(`sort=${sortMethod}`);
                 params.push(`pageNum=${itemsPerPage}`);
                 return `${baseUrl}?${params.join('&')}`;
+            };
+
+            const handleCatalogSelectAndSearch = (selection) => {
+                const newKeywords = selection.type === 'item'
+                    ? parseKeywordParts(selection.keyword)
+                    : [];
+                handleCatalogSelect(selection);
+                window.open(buildSearchUrl(newKeywords, selection.cateCd), '_blank');
             };
 
             const executeSearch = () => {
@@ -491,7 +690,7 @@
 
                             <hr className="border-gray-100 shrink-0"/>
 
-                            <div className={`flex flex-col min-h-0 ${isKoreanBanknote ? 'flex-1' : 'shrink-0'}`}>
+                            <div className={`flex flex-col min-h-0 ${isCatalogOpen ? 'flex-1' : 'shrink-0'}`}>
                                 <div className="shrink-0">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <span className="text-gray-600 scale-90">{Icons.Category}</span>
@@ -502,7 +701,9 @@
                                     {CATEGORIES.map(cat => {
                                         const isActive = cat.id === '003'
                                             ? isKoreanBanknote
-                                            : selectedCat === cat.id;
+                                            : cat.id === '001'
+                                                ? isForeignBanknote
+                                                : selectedCat === cat.id;
                                         return (
                                             <div 
                                                 key={cat.id}
@@ -517,12 +718,50 @@
                                             >
                                                 <span className="scale-75">{isActive ? Icons.RadioOn : Icons.RadioOff}</span>
                                                 {cat.label}
-                                                <span className="text-[10px] text-gray-400 font-normal">({cat.id})</span>
                                             </div>
                                         );
                                     })}
                                 </div>
                                 </div>
+
+                                {isForeignBanknote && (
+                                    <div className="flex flex-col flex-1 min-h-0 mt-1.5">
+                                        <div className="flex items-center justify-between mb-1 shrink-0 gap-2">
+                                            <span className="text-sm font-bold text-amber-800">외국지폐 카탈로그</span>
+                                            <span className="text-xs text-gray-400">클릭 시 자동 설정</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mb-1 shrink-0">
+                                            {FOREIGN_CATALOG_SORT.map(opt => (
+                                                <button
+                                                    key={opt.value}
+                                                    onClick={() => setForeignTreeSort(opt.value)}
+                                                    className={`px-2 py-0.5 text-xs rounded border transition-colors ${foreignTreeSort === opt.value ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                                                >
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {foreignTreeSort === 'major' ? (
+                                            <CatalogTree
+                                                tree={foreignTree}
+                                                expanded={expandedNodes}
+                                                onToggle={handleToggleNode}
+                                                selectedId={selectedCatalogId}
+                                                onSelect={handleCatalogSelect}
+                                                onSelectAndSearch={handleCatalogSelectAndSearch}
+                                                categoryFastSearch
+                                            />
+                                        ) : (
+                                            <ForeignCountryList
+                                                countries={foreignFlatCountries}
+                                                sortMode={foreignTreeSort}
+                                                selectedId={selectedCatalogId}
+                                                onSelect={handleCatalogSelect}
+                                                onSelectAndSearch={handleCatalogSelectAndSearch}
+                                            />
+                                        )}
+                                    </div>
+                                )}
 
                                 {isKoreanBanknote && (
                                     <div className="flex flex-col flex-1 min-h-0 mt-1.5">
@@ -536,15 +775,17 @@
                                             onToggle={handleToggleNode}
                                             selectedId={selectedCatalogId}
                                             onSelect={handleCatalogSelect}
+                                            onSelectAndSearch={handleCatalogSelectAndSearch}
+                                            itemFastSearch
                                         />
-                                        {selectedCatalogLabel && (
-                                            <div className="mt-1 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded shrink-0">
-                                                선택: <b>{selectedCatalogLabel}</b>
-                                                {selectedCat && <span className="ml-1 text-gray-500">({selectedCat})</span>}
-                                                {keywords.length > 0 && (
-                                                    <span className="ml-1 font-mono">{joinKeywordsForSearch(keywords)}</span>
-                                                )}
-                                            </div>
+                                    </div>
+                                )}
+
+                                {isCatalogOpen && selectedCatalogLabel && (
+                                    <div className="mt-1 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded shrink-0">
+                                        선택: <b>{selectedCatalogLabel}</b>
+                                        {keywords.length > 0 && (
+                                            <span className="ml-1 font-mono">{joinKeywordsForSearch(keywords)}</span>
                                         )}
                                     </div>
                                 )}
