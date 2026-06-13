@@ -189,6 +189,33 @@
             ],
         };
 
+        const KOREAN_COIN_TREE = {
+            cateCd: '004',
+            label: '한국주화',
+            children: [
+                { cateCd: '004001', label: '고전' },
+                { cateCd: '004002', label: '근대주화' },
+                {
+                    cateCd: '004003',
+                    label: '현행주화',
+                    children: [
+                        { cateCd: '004003001', label: '100환' },
+                        { cateCd: '004003002', label: '50환' },
+                        { cateCd: '004003003', label: '10환' },
+                        { cateCd: '004003004', label: '500원' },
+                        { cateCd: '004003005', label: '100원' },
+                        { cateCd: '004003006', label: '50원' },
+                        { cateCd: '004003007', label: '10원' },
+                        { cateCd: '004003008', label: '5원' },
+                        { cateCd: '004003009', label: '1원' },
+                        { cateCd: '004003010', label: '민트세트' },
+                    ],
+                },
+                { cateCd: '004004', label: '기념주화' },
+                { cateCd: '004005', label: '메달' },
+            ],
+        };
+
         const buildCateSlots = (cateCd) => {
             const slots = ['', '', '', ''];
             if (!cateCd) return slots;
@@ -464,7 +491,8 @@
 
             const isKoreanBanknote = selectedCat === '003' || (selectedCat && selectedCat.startsWith('003'));
             const isForeignBanknote = selectedCat === '001' || (selectedCat && selectedCat.startsWith('001'));
-            const isCatalogOpen = isKoreanBanknote || isForeignBanknote;
+            const isKoreanCoin = selectedCat === '004' || (selectedCat && selectedCat.startsWith('004'));
+            const isCatalogOpen = isKoreanBanknote || isForeignBanknote || isKoreanCoin;
             const foreignTree = getSortedForeignTree();
             const foreignFlatCountries = foreignTreeSort !== 'major'
                 ? getForeignFlatCountries(foreignTreeSort)
@@ -495,6 +523,19 @@
                         setSelectedCatalogLabel('외국지폐');
                         setForeignTreeSort('ko');
                         setExpandedNodes(new Set(['001']));
+                    }
+                    return;
+                }
+                if (id === '004') {
+                    if (isKoreanCoin) {
+                        setSelectedCat('');
+                        setSelectedCatalogId('');
+                        setSelectedCatalogLabel('');
+                    } else {
+                        setSelectedCat('004');
+                        setSelectedCatalogId('004');
+                        setSelectedCatalogLabel('한국주화');
+                        setExpandedNodes(new Set(['004']));
                     }
                     return;
                 }
@@ -703,7 +744,9 @@
                                             ? isKoreanBanknote
                                             : cat.id === '001'
                                                 ? isForeignBanknote
-                                                : selectedCat === cat.id;
+                                                : cat.id === '004'
+                                                    ? isKoreanCoin
+                                                    : selectedCat === cat.id;
                                         return (
                                             <div 
                                                 key={cat.id}
@@ -767,7 +810,7 @@
                                     <div className="flex flex-col flex-1 min-h-0 mt-1.5">
                                         <div className="flex items-center justify-between mb-1 shrink-0">
                                             <span className="text-sm font-bold text-amber-800">한국지폐 카탈로그</span>
-                                            <span className="text-xs text-gray-400">클릭 시 자동 설정</span>
+                                            <span className="text-xs text-gray-400">클릭 시 자동 설정 · 더블클릭/Enter 검색</span>
                                         </div>
                                         <CatalogTree
                                             tree={KOREAN_BANKNOTE_TREE}
@@ -777,6 +820,24 @@
                                             onSelect={handleCatalogSelect}
                                             onSelectAndSearch={handleCatalogSelectAndSearch}
                                             itemFastSearch
+                                        />
+                                    </div>
+                                )}
+
+                                {isKoreanCoin && (
+                                    <div className="flex flex-col flex-1 min-h-0 mt-1.5">
+                                        <div className="flex items-center justify-between mb-1 shrink-0">
+                                            <span className="text-sm font-bold text-amber-800">한국주화 카탈로그</span>
+                                            <span className="text-xs text-gray-400">클릭 시 자동 설정 · 더블클릭/Enter 검색</span>
+                                        </div>
+                                        <CatalogTree
+                                            tree={KOREAN_COIN_TREE}
+                                            expanded={expandedNodes}
+                                            onToggle={handleToggleNode}
+                                            selectedId={selectedCatalogId}
+                                            onSelect={handleCatalogSelect}
+                                            onSelectAndSearch={handleCatalogSelectAndSearch}
+                                            categoryFastSearch
                                         />
                                     </div>
                                 )}
