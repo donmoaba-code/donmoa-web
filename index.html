@@ -18,6 +18,13 @@
     <style>
         body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
         html, body { height: 100%; overflow: hidden; }
+        .donmoa-brand-text { color: #FF5B00 !important; }
+        .donmoa-brand-bg { background-color: #FF5B00; }
+        .donmoa-brand-bg:hover { background-color: #FF630F; }
+        .donmoa-brand-badge {
+            color: #FF5B00;
+            background-color: #FFF3EB;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -323,7 +330,6 @@
             });
         };
 
-        const parseKeywordParts = (keyword) => keyword.split('%').map(k => k.trim()).filter(Boolean);
 
         function ForeignCountryList({ countries, sortMode, selectedId, onSelect, onSelectAndSearch }) {
             return (
@@ -472,15 +478,21 @@
             );
         }
 
-        const joinKeywordsForSearch = (keywords) => {
-            if (keywords.length === 0) return '';
-            if (keywords.length === 1) return keywords[0];
-            return keywords.join('%');
-        };
+        const formatSearchKeyword = (raw) =>
+            (raw || '').trim().split(/[\s%]+/).filter(Boolean).join('%');
+
+        function CatalogHint() {
+            return (
+                <span className="text-xs shrink-0">
+                    <span className="text-sky-700 font-medium">클릭 시 자동 설정</span>
+                    <span className="text-slate-300 mx-1">·</span>
+                    <span className="donmoa-brand-text font-semibold">더블클릭/Enter로 검색</span>
+                </span>
+            );
+        }
 
         function App() {
             const [inputValue, setInputValue] = useState('');
-            const [keywords, setKeywords] = useState([]);
             const [selectedCat, setSelectedCat] = useState('');
             const [selectedCatalogId, setSelectedCatalogId] = useState('');
             const [selectedCatalogLabel, setSelectedCatalogLabel] = useState('');
@@ -558,10 +570,9 @@
                 setSelectedCatalogId(selection.id);
                 setSelectedCatalogLabel(selection.label);
                 if (selection.type === 'item') {
-                    setKeywords(parseKeywordParts(selection.keyword));
-                    setInputValue('');
+                    setInputValue(selection.keyword.replace(/%/g, ' '));
                 } else {
-                    setKeywords([]);
+                    setInputValue('');
                 }
                 setExpandedNodes(prev => {
                     const next = new Set(prev);
@@ -575,35 +586,17 @@
                 });
             };
 
-            const addKeyword = () => {
-                const trimmed = inputValue.trim();
-                if (!trimmed || keywords.includes(trimmed)) return;
-                setKeywords(prev => [...prev, trimmed]);
-                setInputValue('');
-            };
-
-            const removeKeyword = (index) => {
-                setKeywords(prev => prev.filter((_, i) => i !== index));
-            };
-
-            const getSearchKeywords = () => {
-                const trimmed = inputValue.trim();
-                if (!trimmed) return keywords;
-                if (keywords.includes(trimmed)) return keywords;
-                return [...keywords, trimmed];
-            };
-
             const resetAll = () => {
-                setInputValue(''); setKeywords([]); setSelectedCat('');
+                setInputValue(''); setSelectedCat('');
                 setSelectedCatalogId(''); setSelectedCatalogLabel('');
                 setExpandedNodes(new Set());
                 setForeignTreeSort('ko');
                 setSortMethod(''); setItemsPerPage('20');
             };
 
-            const buildSearchUrl = (searchKeywords, cateCd = selectedCat) => {
+            const buildSearchUrl = (keyword, cateCd = selectedCat) => {
                 const baseUrl = 'https://donmoa.kr/goods/goods_search.php';
-                const combinedKeyword = joinKeywordsForSearch(searchKeywords);
+                const combinedKeyword = keyword || '';
 
                 if (cateCd) {
                     const slots = buildCateSlots(cateCd);
@@ -624,20 +617,15 @@
             };
 
             const handleCatalogSelectAndSearch = (selection) => {
-                const newKeywords = selection.type === 'item'
-                    ? parseKeywordParts(selection.keyword)
-                    : [];
+                const searchText = selection.type === 'item'
+                    ? selection.keyword.replace(/%/g, ' ')
+                    : inputValue;
                 handleCatalogSelect(selection);
-                window.open(buildSearchUrl(newKeywords, selection.cateCd), '_blank');
+                window.open(buildSearchUrl(formatSearchKeyword(searchText), selection.cateCd), '_blank');
             };
 
             const executeSearch = () => {
-                const searchKeywords = getSearchKeywords();
-                if (inputValue.trim() && !keywords.includes(inputValue.trim())) {
-                    setKeywords(searchKeywords);
-                    setInputValue('');
-                }
-                window.open(buildSearchUrl(searchKeywords), '_blank');
+                window.open(buildSearchUrl(formatSearchKeyword(inputValue)), '_blank');
             };
 
             return (
@@ -646,12 +634,12 @@
                         
                         <div className="bg-white px-4 py-2 border-b border-gray-100 grid grid-cols-3 items-center shrink-0">
                             <div>
-                                <h1 className="text-lg font-extrabold text-amber-900 flex items-center gap-2">
-                                    <span className="text-amber-600">{Icons.Search}</span>
+                                <h1 className="text-lg font-extrabold donmoa-brand-text flex items-center gap-2">
+                                    <span className="donmoa-brand-text">{Icons.Search}</span>
                                     돈모아 통합 검색
                                 </h1>
                                 <p className="text-gray-500 text-xs">
-                                    <b>새 창</b>에서 <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline">donmoa.kr</a> 검색 · 단계별 <b>AND</b> 지원
+                                    <b>새 창</b>에서 <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline">donmoa.kr</a> 검색 · 띄어쓰기=<b>AND</b>
                                 </p>
                             </div>
                             <div className="flex justify-center items-center">
@@ -662,7 +650,7 @@
                             <div className="flex items-center justify-end gap-1.5">
                                 <button
                                     onClick={executeSearch}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-md shadow transition-colors"
+                                    className="flex items-center gap-1 px-3 py-1.5 donmoa-brand-bg text-white text-xs font-bold rounded-md shadow transition-colors"
                                 >
                                     {Icons.Search} 검색 (새 창)
                                 </button>
@@ -675,58 +663,33 @@
                         <div className="px-4 py-2 flex flex-col flex-1 min-h-0 overflow-hidden gap-2">
                             
                             <div className="shrink-0">
-                                <div className="flex items-center justify-between mb-1">
-                                    <label className="text-xs font-bold text-gray-700">검색어 입력</label>
-                                    <span className="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded-full font-bold">단계별 AND</span>
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1 w-full">
+                                    <label className="text-xs font-bold text-gray-700 shrink-0">검색어 입력</label>
+                                    {selectedCat && (
+                                        <span className="text-xs donmoa-brand-text font-bold leading-snug flex-1 min-w-[200px]">⚠️ 카테고리가 선택된 경우, 해당 카테고리 내에서만 검색이 진행됩니다.</span>
+                                    )}
+                                    <span className="text-xs donmoa-brand-badge px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-auto">띄어쓰기=AND</span>
                                 </div>
-                                <div className="flex gap-1.5">
-                                    <div className="relative flex-1">
-                                        <input 
-                                            type="text" 
-                                            value={inputValue}
-                                            onChange={(e) => setInputValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') {
-                                                    e.preventDefault();
-                                                    inputValue.trim() ? addKeyword() : executeSearch();
-                                                }
-                                            }}
-                                            placeholder="단어 입력 후 Enter 또는 [추가]"
-                                            className="w-full h-9 pl-3 pr-8 border border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none transition-colors"
-                                        />
-                                        {inputValue && (
-                                            <button onClick={() => setInputValue('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
-                                                {Icons.Close}
-                                            </button>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={addKeyword}
-                                        disabled={!inputValue.trim()}
-                                        className="h-9 px-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-xs font-bold text-slate-700 transition-colors whitespace-nowrap"
-                                    >
-                                        + 추가
-                                    </button>
+                                <div className="relative">
+                                    <input 
+                                        type="text" 
+                                        value={inputValue}
+                                        onChange={(e) => setInputValue(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                executeSearch();
+                                            }
+                                        }}
+                                        placeholder="예: 정10원 유번호  ·  Enter로 검색  ·  또는 '검색 (새 창)' 버튼 클릭으로 검색"
+                                        className="w-full h-9 pl-3 pr-8 border border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none transition-colors"
+                                    />
+                                    {inputValue && (
+                                        <button onClick={() => setInputValue('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                                            {Icons.Close}
+                                        </button>
+                                    )}
                                 </div>
-                                {keywords.length > 0 && (
-                                    <div className="mt-1.5 px-2 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
-                                        <div className="text-[10px] font-bold text-slate-500 mb-1">검색 단계</div>
-                                        <div className="flex flex-wrap items-center gap-1">
-                                            {keywords.map((kw, index) => (
-                                                <React.Fragment key={`${kw}-${index}`}>
-                                                    {index > 0 && <span className="text-amber-500 font-bold text-xs">%</span>}
-                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-white border border-amber-200 rounded text-xs font-bold text-amber-900">
-                                                        <span className="text-[10px] text-amber-400">{index + 1}</span>
-                                                        {kw}
-                                                        <button onClick={() => removeKeyword(index)} className="text-gray-300 hover:text-red-500">
-                                                            {Icons.Close}
-                                                        </button>
-                                                    </span>
-                                                </React.Fragment>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
 
                             <hr className="border-gray-100 shrink-0"/>
@@ -735,8 +698,7 @@
                                 <div className="shrink-0">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <span className="text-gray-600 scale-90">{Icons.Category}</span>
-                                    <span className="text-xs font-bold text-gray-700">카테고리</span>
-                                    <span className="text-[10px] bg-red-50 text-red-500 px-1.5 py-0.5 rounded-full font-bold">1개만</span>
+                                    <span className="text-[10px] donmoa-brand-text font-bold">카테고리 1개만 선택가능 / 클릭=선택 / 다시 클릭=해제</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                     {CATEGORIES.map(cat => {
@@ -771,7 +733,7 @@
                                     <div className="flex flex-col flex-1 min-h-0 mt-1.5">
                                         <div className="flex items-center justify-between mb-1 shrink-0 gap-2">
                                             <span className="text-sm font-bold text-amber-800">외국지폐 카탈로그</span>
-                                            <span className="text-xs text-gray-400">클릭 시 자동 설정</span>
+                                            <CatalogHint />
                                         </div>
                                         <div className="flex flex-wrap gap-1 mb-1 shrink-0">
                                             {FOREIGN_CATALOG_SORT.map(opt => (
@@ -810,7 +772,7 @@
                                     <div className="flex flex-col flex-1 min-h-0 mt-1.5">
                                         <div className="flex items-center justify-between mb-1 shrink-0">
                                             <span className="text-sm font-bold text-amber-800">한국지폐 카탈로그</span>
-                                            <span className="text-xs text-gray-400">클릭 시 자동 설정 · 더블클릭/Enter 검색</span>
+                                            <CatalogHint />
                                         </div>
                                         <CatalogTree
                                             tree={KOREAN_BANKNOTE_TREE}
@@ -828,7 +790,7 @@
                                     <div className="flex flex-col flex-1 min-h-0 mt-1.5">
                                         <div className="flex items-center justify-between mb-1 shrink-0">
                                             <span className="text-sm font-bold text-amber-800">한국주화 카탈로그</span>
-                                            <span className="text-xs text-gray-400">클릭 시 자동 설정 · 더블클릭/Enter 검색</span>
+                                            <CatalogHint />
                                         </div>
                                         <CatalogTree
                                             tree={KOREAN_COIN_TREE}
@@ -845,9 +807,6 @@
                                 {isCatalogOpen && selectedCatalogLabel && (
                                     <div className="mt-1 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded shrink-0">
                                         선택: <b>{selectedCatalogLabel}</b>
-                                        {keywords.length > 0 && (
-                                            <span className="ml-1 font-mono">{joinKeywordsForSearch(keywords)}</span>
-                                        )}
                                     </div>
                                 )}
                             </div>
