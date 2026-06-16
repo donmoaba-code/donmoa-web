@@ -16,8 +16,72 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
-        html, body { height: 100%; overflow: hidden; }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-1Thin.woff2') format('woff2');
+            font-weight: 100;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-2ExtraLight.woff2') format('woff2');
+            font-weight: 200;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-3Light.woff2') format('woff2');
+            font-weight: 300;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-4Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-5Medium.woff2') format('woff2');
+            font-weight: 500;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-6SemiBold.woff2') format('woff2');
+            font-weight: 600;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-7Bold.woff2') format('woff2');
+            font-weight: 700;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-8ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-display: swap;
+        }
+        @font-face {
+            font-family: 'Presentation';
+            src: url('https://gdadmin.donmoa.kr/data/goods/fonts/Freesentation/Freesentation-9Black.woff2') format('woff2');
+            font-weight: 900;
+            font-display: swap;
+        }
+        html {
+            font-size: 17px;
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Presentation', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+            font-weight: 500;
+            color: #0f172a;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
         .donmoa-brand-text { color: #FF5B00 !important; }
         .donmoa-brand-bg { background-color: #FF5B00; }
         .donmoa-brand-bg:hover { background-color: #FF630F; }
@@ -25,6 +89,15 @@
             color: #FF5B00;
             background-color: #FFF3EB;
         }
+        .text-gray-400 { color: #6b7280 !important; }
+        .text-gray-500 { color: #4b5563 !important; }
+        .text-gray-600 { color: #374151 !important; }
+        .text-gray-700 { color: #1f2937 !important; }
+        .font-normal { font-weight: 500 !important; }
+        .font-medium { font-weight: 600 !important; }
+        .font-semibold { font-weight: 700 !important; }
+        .font-bold { font-weight: 700 !important; }
+        .font-extrabold { font-weight: 800 !important; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -361,7 +434,7 @@
                             >
                                 <span className="text-amber-400 text-sm">●</span>
                                 <span className="flex-1">{displayLabel}</span>
-                                {subLabel && <span className="text-xs text-gray-400">{subLabel}</span>}
+                                {subLabel && <span className="text-sm text-gray-400">{subLabel}</span>}
                             </div>
                         );
                     })}
@@ -399,7 +472,7 @@
                         >
                             <span className="text-amber-400 text-sm">●</span>
                             <span className="flex-1">{node.label}</span>
-                            <span className="text-xs text-gray-400 font-mono hidden sm:inline">{node.keyword}</span>
+                            <span className="text-sm text-gray-400 font-mono hidden sm:inline">{node.keyword}</span>
                         </div>
                     );
                 }
@@ -438,7 +511,7 @@
                                 } : undefined}
                             >
                                 {node.label}
-                                {node.labelEn && <span className="ml-1 text-xs text-gray-400 font-normal">{node.labelEn}</span>}
+                                {node.labelEn && <span className="ml-1 text-sm text-gray-400 font-normal">{node.labelEn}</span>}
                             </span>
                         </div>
                         {isExpanded && hasChildren && node.children.map(child => renderNode(child, depth + 1, node.cateCd))}
@@ -464,7 +537,7 @@
                                 >
                                     <span className="text-amber-400 text-sm">●</span>
                                     <span className="flex-1">{item.label}</span>
-                                    <span className="text-xs text-gray-400 font-mono hidden sm:inline">{item.keyword}</span>
+                                    <span className="text-sm text-gray-400 font-mono hidden sm:inline">{item.keyword}</span>
                                 </div>
                             );
                         })}
@@ -483,10 +556,10 @@
 
         function CatalogHint() {
             return (
-                <span className="text-xs shrink-0">
-                    <span className="text-sky-700 font-medium">클릭 시 자동 설정</span>
+                <span className="text-sm shrink-0">
+                    <span className="text-sky-700 font-semibold">클릭 시 자동 설정</span>
                     <span className="text-slate-300 mx-1">·</span>
-                    <span className="donmoa-brand-text font-semibold">더블클릭/Enter로 검색</span>
+                    <span className="donmoa-brand-text font-bold">더블클릭/Enter로 검색</span>
                 </span>
             );
         }
@@ -632,29 +705,29 @@
                 <div className="h-screen p-2 overflow-hidden">
                     <div className="w-full max-w-5xl mx-auto h-full bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 flex flex-col">
                         
-                        <div className="bg-white px-4 py-2 border-b border-gray-100 grid grid-cols-3 items-center shrink-0">
+                        <div className="bg-white px-4 py-3 border-b border-gray-100 grid grid-cols-3 items-center shrink-0">
                             <div>
-                                <h1 className="text-lg font-extrabold donmoa-brand-text flex items-center gap-2">
+                                <h1 className="text-xl font-extrabold donmoa-brand-text flex items-center gap-2">
                                     <span className="donmoa-brand-text">{Icons.Search}</span>
                                     돈모아 통합 검색
                                 </h1>
-                                <p className="text-gray-500 text-xs">
+                                <p className="text-gray-500 text-sm">
                                     <b>새 창</b>에서 <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline">donmoa.kr</a> 검색 · 띄어쓰기=<b>AND</b>
                                 </p>
                             </div>
                             <div className="flex justify-center items-center">
                                 <a href="https://donmoa.kr" target="_blank" rel="noopener noreferrer">
-                                    <img src="donmoa_logo.png" alt="돈모아 화폐수집전문점" className="h-10 w-auto object-contain" />
+                                    <img src="donmoa_logo.png" alt="돈모아 화폐수집전문점" className="h-16 w-auto object-contain" />
                                 </a>
                             </div>
                             <div className="flex items-center justify-end gap-1.5">
                                 <button
                                     onClick={executeSearch}
-                                    className="flex items-center gap-1 px-3 py-1.5 donmoa-brand-bg text-white text-xs font-bold rounded-md shadow transition-colors"
+                                    className="flex items-center gap-1 px-3 py-2 donmoa-brand-bg text-white text-sm font-bold rounded-md shadow transition-colors"
                                 >
                                     {Icons.Search} 검색 (새 창)
                                 </button>
-                                <button onClick={resetAll} className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-md text-xs font-bold text-gray-600 transition-colors">
+                                <button onClick={resetAll} className="flex items-center gap-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-md text-sm font-bold text-gray-600 transition-colors">
                                     {Icons.Reset} 초기화
                                 </button>
                             </div>
@@ -664,11 +737,11 @@
                             
                             <div className="shrink-0">
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-1 w-full">
-                                    <label className="text-xs font-bold text-gray-700 shrink-0">검색어 입력</label>
+                                    <label className="text-sm font-bold text-gray-700 shrink-0">검색어 입력</label>
                                     {selectedCat && (
-                                        <span className="text-xs donmoa-brand-text font-bold leading-snug flex-1 min-w-[200px]">⚠️ 카테고리가 선택된 경우, 해당 카테고리 내에서만 검색이 진행됩니다.</span>
+                                        <span className="text-sm donmoa-brand-text font-bold leading-snug flex-1 min-w-[200px]">⚠️ 카테고리가 선택된 경우, 해당 카테고리 내에서만 검색이 진행됩니다.</span>
                                     )}
-                                    <span className="text-xs donmoa-brand-badge px-1.5 py-0.5 rounded-full font-bold shrink-0 ml-auto">띄어쓰기=AND</span>
+                                    <span className="text-sm donmoa-brand-badge px-2 py-0.5 rounded-full font-bold shrink-0 ml-auto">띄어쓰기=AND</span>
                                 </div>
                                 <div className="relative">
                                     <input 
@@ -682,7 +755,7 @@
                                             }
                                         }}
                                         placeholder="예: 정10원 유번호  ·  Enter로 검색  ·  또는 '검색 (새 창)' 버튼 클릭으로 검색"
-                                        className="w-full h-9 pl-3 pr-8 border border-gray-200 rounded-lg text-sm focus:border-amber-500 focus:outline-none transition-colors"
+                                        className="w-full h-10 pl-3 pr-8 border border-gray-200 rounded-lg text-base font-semibold focus:border-amber-500 focus:outline-none transition-colors"
                                     />
                                     {inputValue && (
                                         <button onClick={() => setInputValue('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
@@ -698,7 +771,7 @@
                                 <div className="shrink-0">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <span className="text-gray-600 scale-90">{Icons.Category}</span>
-                                    <span className="text-[10px] donmoa-brand-text font-bold">카테고리 1개만 선택가능 / 클릭=선택 / 다시 클릭=해제</span>
+                                    <span className="text-sm donmoa-brand-text font-bold">카테고리 1개만 선택가능 / 클릭=선택 / 다시 클릭=해제</span>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                     {CATEGORIES.map(cat => {
@@ -714,7 +787,7 @@
                                                 key={cat.id}
                                                 onClick={() => handleCategoryClick(cat.id)}
                                                 className={`
-                                                    flex items-center gap-1 px-2 py-1 rounded border cursor-pointer transition-all select-none text-xs
+                                                    flex items-center gap-1 px-2.5 py-1.5 rounded border cursor-pointer transition-all select-none text-sm
                                                     ${isActive
                                                         ? 'border-amber-500 bg-amber-50 text-amber-800 font-bold' 
                                                         : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
@@ -740,7 +813,7 @@
                                                 <button
                                                     key={opt.value}
                                                     onClick={() => setForeignTreeSort(opt.value)}
-                                                    className={`px-2 py-0.5 text-xs rounded border transition-colors ${foreignTreeSort === opt.value ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                                                    className={`px-2.5 py-1 text-sm rounded border transition-colors ${foreignTreeSort === opt.value ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
                                                 >
                                                     {opt.label}
                                                 </button>
@@ -805,7 +878,7 @@
                                 )}
 
                                 {isCatalogOpen && selectedCatalogLabel && (
-                                    <div className="mt-1 text-xs text-amber-700 bg-amber-50 px-2 py-1.5 rounded shrink-0">
+                                    <div className="mt-1 text-sm text-amber-700 bg-amber-50 px-2 py-1.5 rounded shrink-0">
                                         선택: <b>{selectedCatalogLabel}</b>
                                     </div>
                                 )}
@@ -815,13 +888,13 @@
 
                             <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                                 <span className="text-gray-600 scale-90 shrink-0">{Icons.Filter}</span>
-                                <span className="text-xs font-bold text-gray-700 shrink-0">정렬</span>
+                                <span className="text-sm font-bold text-gray-700 shrink-0">정렬</span>
                                 <div className="flex flex-nowrap gap-1 overflow-x-auto">
                                     {SORT_OPTIONS.map(opt => (
                                         <button 
                                             key={opt.value}
                                             onClick={() => setSortMethod(opt.value)}
-                                            className={`px-2 py-0.5 text-xs rounded border whitespace-nowrap transition-colors ${sortMethod === opt.value ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                                            className={`px-2.5 py-1 text-sm rounded border whitespace-nowrap transition-colors ${sortMethod === opt.value ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
                                         >
                                             {opt.label}
                                         </button>
@@ -831,13 +904,13 @@
 
                             <div className="flex items-center gap-1.5 flex-nowrap shrink-0">
                                 <span className="text-gray-600 scale-90 shrink-0">{Icons.Eye}</span>
-                                <span className="text-xs font-bold text-gray-700 shrink-0">보기</span>
+                                <span className="text-sm font-bold text-gray-700 shrink-0">보기</span>
                                 <div className="flex flex-nowrap gap-1">
                                     {PAGE_SIZE_OPTIONS.map(size => (
                                         <button 
                                             key={size}
                                             onClick={() => setItemsPerPage(size)}
-                                            className={`px-2 py-0.5 text-xs rounded border whitespace-nowrap transition-colors ${itemsPerPage === size ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                                            className={`px-2.5 py-1 text-sm rounded border whitespace-nowrap transition-colors ${itemsPerPage === size ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'}`}
                                         >
                                             {size}개
                                         </button>
